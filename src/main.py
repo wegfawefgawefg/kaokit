@@ -1,6 +1,11 @@
 import math
 import pygame
 import glm
+from audio import Audio, Music, PlaySong, handle_audio_events
+from graphics import Graphics
+
+from situations.face_test import FaceTest
+from situations.french_fry import FrenchFry
 
 pygame.init()
 
@@ -8,31 +13,23 @@ render_resolution = glm.vec2(240, 160)
 window_size = render_resolution * 4
 
 
-def mouse_pos():
-    return glm.vec2(pygame.mouse.get_pos()) / window_size * render_resolution
+GAMEPADS = []
 
-
-def draw(surface):
-    angle = pygame.time.get_ticks() / 1000
-
-    rect_size = glm.vec2(16, 16)
-    center = render_resolution / 2
-    rect_pos = center - rect_size / 2 + glm.vec2(32, 32)
-
-    for i in range(3):
-        rot = glm.rotate(glm.vec2(0.0, 1.0), angle + i * 90)
-        rect_pos_rotated = rot @ (rect_pos - center) + rect_pos
-        pygame.draw.rect(
-            surface, (255, 0, 0), (rect_pos_rotated.to_tuple(), rect_size.to_tuple())
-        )
-
-    pygame.draw.circle(surface, (0, 255, 0), mouse_pos(), 10)
+situations = [FaceTest, FrenchFry]
 
 
 def main():
-    window = pygame.display.set_mode(window_size.to_tuple())
-    render_surface = pygame.Surface(render_resolution.to_tuple())
+    pygame.joystick.init()
+    graphics = Graphics()
+    audio = Audio()
 
+    situation_constructor = situations[1]
+    situation = situation_constructor()
+    frame_count = 0
+
+    audio.events.append(PlaySong(Music.FRENCH_JAZZ))
+
+    clock = pygame.time.Clock()
     running = True
     while running:
         for event in pygame.event.get():
@@ -41,14 +38,31 @@ def main():
                 and (event.key == pygame.K_ESCAPE or event.key == pygame.K_q)
             ):
                 running = False
+            elif event.type == pygame.JOYDEVICEADDED:
+                gamepad = pygame.joystick.Joystick(event.device_index)
+                print("Gamepad connected:", gamepad.get_name())
+                GAMEPADS.append(gamepad)
+            elif event.type == pygame.JOYDEVICEREMOVED:
+                gamepad = pygame.joystick.Joystick(event.device_index)
+                print("Gamepad disconnected:", gamepad.get_name())
 
-        render_surface.fill((0, 0, 0))
+                GAMEPADS.remove(gamepad)
 
-        draw(render_surface)
+        situation.step(frame_count, graphics, GAMEPADS)
 
-        stretched_surface = pygame.transform.scale(render_surface, window_size)
-        window.blit(stretched_surface, (0, 0))
+        handle_audio_events(audio)
+        graphics.window.fill((255, 255, 255))
+        situation.draw(graphics, frame_count)
+
+        # fps in top left
+
+        # draw a circle at the mouse_position
+
         pygame.display.update()
+
+        clock.tick(60)
+
+        frame_count += 1
 
     pygame.quit()
 

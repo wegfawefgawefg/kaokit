@@ -1,146 +1,66 @@
 from enum import Enum
 import time
 
-import glm
 import pygame
 from small_ass_cache import AssetCache, loader
 
 
-class Camera:
-    def __init__(self, size):
-        self.pos = glm.vec2(0, 0)
-        self.size = size
-
-    def set_center(self, pos):
-        self.pos = pos - self.size / 2
-
-    def get_center(self):
-        return self.pos + self.size / 2
+# args kwargs pygame.image.load wrapper
+def load_image(args, **kwargs):
+    return pygame.image.load(args, **kwargs).convert_alpha()
 
 
-class Graphics:
-    def __init__(self):
-        self.render_resolution = glm.vec2(1000, 1000) * 1
-        self.window_size = self.render_resolution * 1
-        self.camera = Camera(glm.vec2(1000, 1000))
-        self.camera.set_center(glm.vec2(500, 500))
-
-        self.window = pygame.display.set_mode(self.window_size.to_tuple())
-        self.render_surface = pygame.Surface(self.render_resolution.to_tuple())
-
-        pygame.display.set_caption("kaokit")
-
-        self.assets = AssetCache()
-
-    def blit_render_surface_to_window(self):
-        self.window.fill((255, 255, 255))
-        stretched_surface = pygame.transform.scale(
-            self.render_surface, self.window_size
-        )
-        self.window.blit(stretched_surface, (0, 0))
-
-
-@loader(pygame.image.load, path="assets/graphics/body_parts")
+@loader(load_image, path="assets/graphics/body_parts")
 class BodyParts(Enum):
     FACE_CENTER_NEUTRAL_1 = "face_center_neutral_1.png"
     FACE_CENTER_NEUTRAL_2 = "face_center_neutral_2.png"
     FACE_CENTER_NEUTRAL_3 = "face_center_neutral_3.png"
+    FACE_CENTER_NEUTRAL_BLINK = "face_center_neutral_blink.png"
     OBLONG_HEAD_1 = "oblong_head_1.png"
     OBLONG_HEAD_2 = "oblong_head_2.png"
     OBLONG_HEAD_3 = "oblong_head_3.png"
+    BODY_DRINKING_GLASS_LOWERED_1 = "body_drinking_glass_lowered_1.png"
+    BODY_DRINKING_GLASS_LOWERED_2 = "body_drinking_glass_lowered_2.png"
+    BODY_DRINKING_GLASS_LOWERED_3 = "body_drinking_glass_lowered_3.png"
+    BODY_DRINKING_GLASS_MIDDLE_1 = "body_drinking_glass_middle_1.png"
+    BODY_DRINKING_GLASS_MIDDLE_2 = "body_drinking_glass_middle_2.png"
+    BODY_DRINKING_GLASS_MIDDLE_3 = "body_drinking_glass_middle_3.png"
+    BODY_DRINKING_GLASS_RAISED_1 = "body_drinking_glass_raised_1.png"
+    BODY_DRINKING_GLASS_RAISED_2 = "body_drinking_glass_raised_2.png"
+    BODY_DRINKING_GLASS_RAISED_3 = "body_drinking_glass_raised_3.png"
+    BLUSH_1 = "blush_1.png"
+    BLUSH_2 = "blush_2.png"
+    BLUSH_3 = "blush_3.png"
+    BIG_SWEAT_1 = "big_sweat_1.png"
+    BIG_SWEAT_2 = "big_sweat_2.png"
+    BIG_SWEAT_3 = "big_sweat_3.png"
+    WOMAN_FACE_NEUTRAL_1 = "woman_face_1.png"
+    WOMAN_FACE_NEUTRAL_2 = "woman_face_2.png"
+    WOMAN_FACE_NEUTRAL_3 = "woman_face_3.png"
+    WOMAN_FACE_NEUTRAL_BLINK = "woman_face_blink.png"
+    UPPER_BODY_FOR_TABLE_LEFT_1 = "upper_body_for_table_left_1.png"
+    UPPER_BODY_FOR_TABLE_LEFT_2 = "upper_body_for_table_left_2.png"
+    UPPER_BODY_FOR_TABLE_LEFT_3 = "upper_body_for_table_left_3.png"
 
 
-if __name__ == "__main__":
-    graphics = Graphics()
+@loader(load_image, path="assets/graphics/animals")
+class Animals(Enum):
+    BIRD_1 = "bird_1.png"
+    BIRD_2 = "bird_2.png"
+    BIRD_3 = "bird_3.png"
 
-    # face textures
-    faces = [
-        BodyParts.FACE_CENTER_NEUTRAL_1,
-        BodyParts.FACE_CENTER_NEUTRAL_2,
-        BodyParts.FACE_CENTER_NEUTRAL_3,
-    ]
 
-    # head textures
-    heads = [
-        BodyParts.OBLONG_HEAD_1,
-        BodyParts.OBLONG_HEAD_2,
-        BodyParts.OBLONG_HEAD_3,
-    ]
+@loader(load_image, path="assets/graphics/hair")
+class Hair(Enum):
+    CURLS_1 = "curls_1.png"
+    CURLS_2 = "curls_2.png"
+    CURLS_3 = "curls_3.png"
+    SPLIT_HAIR_1 = "split_hair_1.png"
+    SPLIT_HAIR_2 = "split_hair_2.png"
+    SPLIT_HAIR_3 = "split_hair_3.png"
 
-    current_head_index = 0
-    head_update_interval = 30
-    head_horizontal_flip = False
 
-    current_face_index = 0
-    face_update_interval = 30
-    face_offset = glm.vec2(0, 0)
-    face_offset_mag = 40
-    face_horizontal_flip = False
-
-    frame_count = 0
-    while True:
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
-                    exit()
-
-        # arrow keys to move face offset
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            face_offset.x = -face_offset_mag
-            face_offset.y = 0
-            face_horizontal_flip = False
-            head_horizontal_flip = False
-
-        elif keys[pygame.K_RIGHT]:
-            face_offset.x = face_offset_mag
-            face_offset.y = 0
-            face_horizontal_flip = True
-            head_horizontal_flip = True
-        elif keys[pygame.K_UP]:
-            face_offset.y = -face_offset_mag
-            face_offset.x = 0
-        elif keys[pygame.K_DOWN]:
-            face_offset.y = face_offset_mag
-            face_offset.x = 0
-        elif keys[pygame.K_SPACE]:
-            face_offset = glm.vec2(0, 0)
-
-        graphics.render_surface.fill((255, 255, 255))
-
-        screen_center = graphics.render_resolution / 2
-
-        current_head = heads[current_head_index]
-        head_texture = graphics.assets.get(current_head)
-        head_size = glm.vec2(head_texture.get_size())
-        head_center = head_size / 2
-
-        head_pos = screen_center - head_center
-
-        # if head_horizontal_flip:
-        #     head_texture = pygame.transform.flip(head_texture, True, False)
-        graphics.render_surface.blit(head_texture, head_pos.to_tuple())
-        if frame_count % head_update_interval == 0:
-            current_head_index = (current_head_index + 1) % len(heads)
-
-        current_face = faces[current_face_index]
-        face_texture = graphics.assets.get(current_face)
-        face_size = glm.vec2(face_texture.get_size())
-        face_center = face_size / 2
-
-        face_pos = screen_center - face_center
-        face_pos += face_offset
-
-        if face_horizontal_flip:
-            face_texture = pygame.transform.flip(face_texture, True, False)
-        graphics.render_surface.blit(face_texture, face_pos.to_tuple())
-        if frame_count % face_update_interval == 0:
-            current_face_index = (current_face_index + 1) % len(faces)
-
-        graphics.blit_render_surface_to_window()
-        pygame.display.update()
-
-        frame_count += 1
+@loader(load_image, path="assets/graphics/props")
+class Props(Enum):
+    FOOD_TABLE = "food_table.png"
+    FRIES_AND_KETCHUP = "fries_and_ketchup.png"
