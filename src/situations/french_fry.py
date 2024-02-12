@@ -19,133 +19,6 @@ from utils import mouse_pos
 
 from ._situation import Situation
 
-ANIMATION_UPDATE_INTERVAL = 30
-
-
-class Blinker:
-    def __init__(self, blink_duration=20, interval=360, variance=120):
-        self.blink_duration = blink_duration
-        self.interval = interval  # base interval amount
-        self.variation = variance  # interval variance
-
-        self.blink_timer = 0  #   counts down during blinking
-        self.time_to_next_blink = 0
-
-    def is_blinking(self):
-        return self.blink_timer > 0
-
-    def step(self):
-        if self.blink_timer > 0:
-            self.blink_timer -= 1
-        else:
-            if self.time_to_next_blink > 0:
-                self.time_to_next_blink -= 1
-            else:  # blink
-                self.blink_timer = self.blink_duration
-                self.time_to_next_blink = self.interval + random.randint(
-                    0, self.variation
-                )
-
-
-class Part:
-    def __init__(self, part, offset):
-        self.part = part
-        self.offset = offset
-
-
-class PartsGroup:
-    def __init__(self):
-        self.pos = vec2(0, 0)
-        self.parts = []
-
-    def add_part(self, part):
-        self.parts.append(part)
-
-    def set_pos(self, pos):
-        self.pos = pos
-        for part in self.parts:
-            part.set_pos()
-
-    def step(self, frame_count):
-        for part in self.parts:
-            part.step(frame_count)
-
-    def draw(self, graphics):
-        for part in self.parts:
-            part.draw(graphics)
-
-
-class LeftOrRight(Enum):
-    Left = auto()
-    Right = auto()
-
-
-class Head:
-    def __init__(self):
-        self.pos = vec2(0, 0)
-        self.vel = vec2(0, 0)
-        self.frame_index = random.randint(0, 2)
-        self.facing = LeftOrRight.Right
-
-    def set_pos(self, pos):
-        self.pos = pos
-        self.face.root_pos = pos
-
-    def step(self, frame_count):
-        self.pos += self.vel
-        if self.vel < 0:
-            self.facing = LeftOrRight.Left
-        elif self.vel > 0:
-            self.facing = LeftOrRight.Right
-
-        if frame_count % ANIMATION_UPDATE_INTERVAL == 0:
-            self.frame_index = (self.frame_index + 1) % 3
-
-    def draw(self, graphics, frame_count):
-        head = HEADS[self.frame_index]
-        texture = graphics.assets.get(head)
-        pos = copy.deepcopy(self.pos)
-
-        if self.facing == LeftOrRight.Left:
-            texture = pygame.transform.flip(texture, True, False)
-        graphics.window.blit(texture, pos.to_tuple())
-
-
-class Face:
-    def __init__(self):
-        self.root_pos = vec2(0, 0)
-        self.offset = vec2(0, 0)
-        self.frame_index = random.randint(0, 2)
-        self.facing = LeftOrRight.Right
-
-    def set_pos(self, pos):
-        self.root_pos = pos
-
-    def get_pos(self):
-        return self.root_pos + self.offset
-
-    def step(self, frame_count):
-        if self.offset.x < 0:
-            self.facing = LeftOrRight.Left
-        elif self.offset.x > 0:
-            self.facing = LeftOrRight.Right
-
-        if frame_count % ANIMATION_UPDATE_INTERVAL == 0:
-            self.frame_index = (self.frame_index + 1) % 3
-
-        self.face.step(self, frame_count)
-
-    def draw(self, graphics, frame_count):
-        face = FACES[self.frame_index]
-        texture = graphics.assets.get(face)
-        pos = copy.deepcopy(self.pos)
-        if offset:
-            pos += offset
-
-        if self.facing == LeftOrRight.Left:
-            texture = pygame.transform.flip(texture, True, False)
-        graphics.window.blit(texture, self.pos.to_tuple())
-
 
 class FrenchFry(Situation):
     face_offset_mag = 40
@@ -173,22 +46,6 @@ class FrenchFry(Situation):
 
         self.blushing = False
         self.sweating = False
-
-    def left_pressed(self) -> None:
-        self.face_offset.x = -FrenchFry.face_offset_mag
-        self.face_offset.y = 0
-
-    def right_pressed(self) -> None:
-        self.face_offset.x = FrenchFry.face_offset_mag
-        self.face_offset.y = 0
-
-    def up_pressed(self) -> None:
-        self.face_offset.y = -FrenchFry.face_offset_mag
-        self.face_offset.x = 0
-
-    def down_pressed(self) -> None:
-        self.face_offset.y = FrenchFry.face_offset_mag
-        self.face_offset.x = 0
 
     def space_pressed(self) -> None:
         self.face_offset = vec2(0, 0)
@@ -257,18 +114,6 @@ class FrenchFry(Situation):
                 if gamepad.get_button(6):
                     self.blushing = False
                     self.sweating = False
-
-            # dpad
-            for i in range(gamepad.get_numhats()):
-                hat = gamepad.get_hat(i)
-                if hat[0] == 1:
-                    self.right_pressed()
-                elif hat[0] == -1:
-                    self.left_pressed()
-                elif hat[1] == 1:
-                    self.up_pressed()
-                elif hat[1] == -1:
-                    self.down_pressed()
 
             # glass level is set by right trigger
             self.glass_level = int((gamepad.get_axis(5) + 1) * 50)

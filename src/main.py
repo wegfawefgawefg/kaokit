@@ -23,7 +23,7 @@ def main():
     graphics = Graphics()
     audio = Audio()
 
-    situation_constructor = situations[1]
+    situation_constructor = situations[0]
     situation = situation_constructor()
     frame_count = 0
 
