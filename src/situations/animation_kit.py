@@ -1,8 +1,9 @@
 from enum import Enum, auto
 import random
 from glm import vec2
+import glm
 import pygame
-from asset_groups import FACES, HEADS
+from asset_groups import BIG_SWEATS, BLUSHES, FACES, HEADS
 
 
 ANIMATION_UPDATE_INTERVAL = 30
@@ -33,36 +34,6 @@ class Blinker:
                 )
 
 
-class OffsetPart:
-    def __init__(self, part, offset):
-        self.part = part
-        self.offset = offset
-
-
-class PartGroup:
-    def __init__(self):
-        self.root_pos = vec2(0, 0)
-        self.offset = vec2(0, 0)
-        self.offset_parts = []
-
-    def add_offset_part(self, offset_part):
-        self.offset_parts.append(offset_part)
-
-    def set_pos(self, pos):
-        self.root_pos = pos
-        for part_offset in self.parts:
-            new_pos = self.root_pos + self.part_offset
-            part_offset.part.set_pos(new_pos)
-
-    def step(self, frame_count):
-        for offset_part in self.offset_parts:
-            offset_part.part.step(frame_count)
-
-    def draw(self, graphics):
-        for offset_part in self.offset_parts:
-            offset_part.draw(graphics)
-
-
 class LeftOrRight(Enum):
     Left = auto()
     Right = auto()
@@ -77,9 +48,9 @@ but also for having a settable offset, left right up down, and analog offset.
 
 def change_facing_based_on_offset(element):
     if element.offset.x < 0:
-        element.facing = LeftOrRight.Left
+        element.set_facing(LeftOrRight.Left)
     elif element.offset.x > 0:
-        element.facing = LeftOrRight.Right
+        element.set_facing(LeftOrRight.Right)
 
 
 def change_facing_based_on_velocity(thing):
@@ -89,110 +60,145 @@ def change_facing_based_on_velocity(thing):
         thing.facing = LeftOrRight.Right
 
 
-class Element:
-    """optional settings:
-    - set an asset_group
-    - set change_facing_based_on_offset
+class OffsetPart:
+    def __init__(self, part, offset):
+        self.part = part
+        self.offset = offset
 
-    MAYBE TODO:
-        consider ripping out the change facing based on offset
-        let that be a "system" that applies to a list of elements
-    """
+
+class PositionType(Enum):
+    Absolute = auto()
+    Relative = auto()
+
+
+class Element:
+    next_id = 0
 
     def __init__(self):
-        self.root_pos = vec2(0, 0)
+        self.id = Element.next_id
+        Element.next_id += 1
+
+        self.active = True
+        self.hidden = False
+
+        self.root_abs_pos = vec2(0, 0)
+        self.parent_offset = vec2(0, 0)
         self.offset = vec2(0, 0)
         self.frame_index = random.randint(0, 2)
         self.facing = LeftOrRight.Right
+        self.inherit_facing = True
 
         self.change_facing_based_on_offset = False
 
         self.asset_group = None
+        self.override_texture = None
 
-    def set_pos(self, pos):
-        self.root_pos = pos
+        self.parent = None
+        self.children = []
+
+    def set_abs_pos(self, pos):
+        self.root_abs_pos = pos
+
+    def set_offset(self, offset):
+        self.offset = offset
+
+    def set_facing(self, facing):
+        self.facing = facing
+        for child in self.children:
+            if child.inherit_facing:
+                child.facing = facing
 
     def get_pos(self):
-        return self.root_pos + self.offset
+        if self.parent is None:
+            return self.root_abs_pos + self.offset
+        else:
+            return self.parent.get_pos() + self.parent_offset + self.offset
+
+    def add_child(self, element):
+        self.children.append(element)
+        element.parent = self
+
+    def remove_child(self, element):
+        id = element.id
+        for i, child in enumerate(self.children):
+            if child.id == id:
+                self.children.pop(i)
+                return
 
     def step(self, frame_count):
-        if self.change_facing_based_on_offset:
-            if self.offset.x < 0:
-                self.facing = LeftOrRight.Left
-            elif self.offset.x > 0:
-                self.facing = LeftOrRight.Right
+        if not self.active:
+            return
 
         if frame_count % ANIMATION_UPDATE_INTERVAL == 0:
             self.frame_index = (self.frame_index + 1) % 3
 
-    def draw(self, graphics, frame_count):
+        for child in self.children:
+            child.step(frame_count)
+
+    def get_current_texture(self, graphics):
         asset = self.asset_group[self.frame_index]
         texture = graphics.assets.get(asset)
+        return texture
+
+    def draw(self, graphics, frame_count):
+        if self.hidden:
+            return
+
+        texture = self.get_current_texture(graphics)
 
         if self.facing == LeftOrRight.Left:
             texture = pygame.transform.flip(texture, True, False)
         graphics.window.blit(texture, self.get_pos().to_tuple())
 
-
-# its some sort of control scheme thing
-class DPADOffsetShifter:
-    def __init__(self, element, offset_mag) -> None:
-        self.element = element
-        self.offset_mag = offset_mag
-
-    def left_pressed(self, element) -> None:
-        self.element.offset.x = -self.offset_mag
-        self.element.offset.y = 0
-
-    def right_pressed(self, element) -> None:
-        self.element.offset.x = self.offset_mag
-        self.element.offset.y = 0
-
-    def up_pressed(self, element) -> None:
-        self.element.offset.y = -self.offset_mag
-        self.element.offset.x = 0
-
-    def down_pressed(self, element) -> None:
-        self.element.offset.y = self.offset_mag
-        self.element.offset.x = 0
-
-    def step(self, gamepads):
-        for gamepad in gamepads:
-            for i in range(gamepad.get_numhats()):
-                hat = gamepad.get_hat(i)
-                if hat[0] == 1:
-                    self.right_pressed()
-                elif hat[0] == -1:
-                    self.left_pressed()
-                elif hat[1] == 1:
-                    self.up_pressed()
-                elif hat[1] == -1:
-                    self.down_pressed()
+        for child in self.children:
+            child.draw(graphics, frame_count)
 
 
-# also a control scheme
-class AnalogOffsetShifter:
-    def __init__(self, element, offset_mag) -> None:
-        self.element = element
-        self.offset_mag = offset_mag
-
-    def step(self, gamepads):
-        for gamepad in gamepads:
-            for i in range(gamepad.get_numaxes()):
-                axis = gamepad.get_axis(i)
-                if i == 0:
-                    self.element.x = axis * self.offset_mag
-                elif i == 1:
-                    self.element.y = axis * self.offset_mag
+def set_offset_with_dpad(element: Element, offset_mag: float, gamepads):
+    for gamepad in gamepads:
+        for i in range(gamepad.get_numhats()):
+            hat = gamepad.get_hat(i)
+            if hat[0] == 1:
+                element.set_offset(vec2(offset_mag, 0))
+            elif hat[0] == -1:
+                element.set_offset(vec2(-offset_mag, 0))
+            elif hat[1] == 1:
+                element.set_offset(vec2(0, -offset_mag))
+            elif hat[1] == -1:
+                element.set_offset(vec2(0, offset_mag))
 
 
-class Head(Element):
-    def __init__(self):
-        super().__init__()
-        self.asset_group = HEADS
+def set_offset_with_arrow_keys(element: Element, offset_mag: float):
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        element.offset.x = -offset_mag
+        element.offset.y = 0
+    elif keys[pygame.K_RIGHT]:
+        element.offset.x = offset_mag
+        element.offset.y = 0
+    elif keys[pygame.K_UP]:
+        element.offset.y = -offset_mag
+        element.offset.x = 0
+    elif keys[pygame.K_DOWN]:
+        element.offset.y = offset_mag
+        element.offset.x = 0
+    elif keys[pygame.K_SPACE]:
+        element.space_pressed()
 
 
-class Face(Element):
-    def __init__(self):
-        super().__init__()
-        self.asset_group = FACES
+def set_offset_with_left_analog_stick(element: Element, offset_mag: float, gamepads):
+    for gamepad in gamepads:
+        for i in range(gamepad.get_numaxes()):
+            axis = gamepad.get_axis(i)
+            if i == 0:
+                element.offset.x = axis * offset_mag
+            elif i == 1:
+                element.offset.y = axis * offset_mag
+
+
+def offset_lookat(element, offset_mag: float, target):
+    if not target:
+        return
+    pos_without_offset = element.get_pos() - element.offset
+    to_target = glm.normalize(target.pos - pos_without_offset)
+    element.set_offset(to_target * offset_mag)

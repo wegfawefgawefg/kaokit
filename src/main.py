@@ -24,7 +24,7 @@ def main():
     audio = Audio()
 
     situation_constructor = situations[0]
-    situation = situation_constructor()
+    situation = situation_constructor(graphics)
     frame_count = 0
 
     audio.events.append(PlaySong(Music.FRENCH_JAZZ))
